@@ -26,10 +26,10 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - run: wget "https://www.foundationdb.org/downloads/6.2.28/ubuntu/installers/foundationdb-clients_6.2.28-1_amd64.deb"
-    - run: sudo dpkg -i foundationdb-clients_6.2.28-1_amd64.deb
-    - run: wget "https://www.foundationdb.org/downloads/6.2.28/ubuntu/installers/foundationdb-server_6.2.28-1_amd64.deb"
-    - run: sudo dpkg -i foundationdb-server_6.2.28-1_amd64.deb
+    - run: wget "https://www.foundationdb.org/downloads/6.3.12/ubuntu/installers/foundationdb-clients_6.3.12-1_amd64.deb"
+    - run: sudo dpkg -i foundationdb-clients_6.3.12-1_amd64.deb
+    - run: wget "https://www.foundationdb.org/downloads/6.2.28/ubuntu/installers/foundationdb-server_6.3.12-1_amd64.deb"
+    - run: sudo dpkg -i foundationdb-server_6.3.12-1_amd64.deb
 
     - run: yarn
     - run: yarn test
