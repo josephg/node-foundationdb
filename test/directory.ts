@@ -168,5 +168,14 @@ withEachDb(db => describe('directory layer', () => {
       // Actually the other bindings allow this. I'm not sure it *should* be allowed, but there you go.
       // assert.rejects(dl.open(db, 'dir'), 'layer mismatch. Should throw')
     })
+
+    it('can open a directory with high contention', async function() {
+      const NUM = 100
+
+      const work = new Array(NUM).fill(null).map(async (_, i) => {
+        await dl.createOrOpen(db, `dir${i}`)
+      })
+      await Promise.all(work)
+    })
   })
 }))
