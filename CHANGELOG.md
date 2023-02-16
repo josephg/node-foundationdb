@@ -1,5 +1,9 @@
 # HEAD
 
+# 1.1.4
+
+- Fixed a bug where napi_string values would have a nulled last value if 1024 length
+
 # 1.1.3
 
 - Fixed a bug creating directory prefixes when the database is under load (#63 - thanks @aikoven)

@@ -4,3 +4,5 @@ dist/
 .*.swp
 prebuilds
 .vscode
+fdb.cluster
+package-lock.json

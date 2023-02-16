@@ -310,7 +310,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       try {
         lastVersion = await (<Transaction>oper).getReadVersion()
         pushLiteral("GOT_READ_VERSION")
-      } catch (e) {
+      } catch (e: any) {
         pushValue(catchFdbErr(e))
       }
     },
@@ -410,7 +410,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         const pack = packPrefixedVersionstamp(prefix, value, true)
         // console.log('packed', pack.toString('hex'))
         pushValue(pack)
-      } catch (e) {
+      } catch (e: any) {
         // console.log('c', e)
         // TODO: Add userspace error codes to these.
         if (e.message === 'No incomplete versionstamp included in tuple pack with versionstamp') {
@@ -725,7 +725,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       try {
         await operations[opcode](operand, ...oper)
-      } catch (e) {
+      } catch (e: any) {
         if (verbose) console.log('Exception:', e.message)
         if (opcode.startsWith('DIRECTORY_')) {
           // For some reason we absorb all errors here rather than just
