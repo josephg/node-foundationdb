@@ -1,6 +1,6 @@
 # FoundationDB NodeJS bindings
 
-Node bindings for [FoundationDB](https://foundationdb.org)!
+Node bindings for [FoundationDB](https://www.foundationdb.org/)!
 
 - [Getting started](#usage)
 - [Connecting to your database cluster](#connecting-to-your-cluster)
