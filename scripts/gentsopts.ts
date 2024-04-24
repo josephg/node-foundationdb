@@ -68,7 +68,7 @@ parseString(xml, (err, result) => {
     if (name.endsWith('Option')) {
       line(`export type ${name}s = {`)
       options.forEach(({name, type, paramDescription, deprecated}) => {
-        output.write(`  ${name}?: ${typeToTs(type)}`)
+        output.write(`  ${name}?: undefined | ${typeToTs(type)}`)
         if (deprecated) output.write(` ${comment} DEPRECATED`)
         else if (paramDescription) output.write(`  ${comment} ${paramDescription}`)
         line()

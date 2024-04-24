@@ -2,51 +2,51 @@
 import {OptionData} from './opts'
 
 export type NetworkOptions = {
-  local_address?: string // DEPRECATED
-  cluster_file?: string // DEPRECATED
-  trace_enable?: string  // path to output directory (or NULL for current working directory)
-  trace_roll_size?: number  // max size of a single trace output file
-  trace_max_logs_size?: number  // max total size of trace files
-  trace_log_group?: string  // value of the LogGroup attribute
-  trace_format?: string  // Format of trace files
-  trace_clock_source?: string  // Trace clock source
-  trace_file_identifier?: string  // The identifier that will be part of all trace file names
-  trace_share_among_client_threads?: true
-  trace_partial_file_suffix?: string  // Append this suffix to partially written log files. When a log file is complete, it is renamed to remove the suffix. No separator is added between the file and the suffix. If you want to add a file extension, you should include the separator - e.g. '.tmp' instead of 'tmp' to add the 'tmp' extension.
-  knob?: string  // knob_name=knob_value
-  TLS_plugin?: string // DEPRECATED
-  TLS_cert_bytes?: Buffer  // certificates
-  TLS_cert_path?: string  // file path
-  TLS_key_bytes?: Buffer  // key
-  TLS_key_path?: string  // file path
-  TLS_verify_peers?: Buffer  // verification pattern
-  Buggify_enable?: true
-  Buggify_disable?: true
-  Buggify_section_activated_probability?: number  // probability expressed as a percentage between 0 and 100
-  Buggify_section_fired_probability?: number  // probability expressed as a percentage between 0 and 100
-  TLS_ca_bytes?: Buffer  // ca bundle
-  TLS_ca_path?: string  // file path
-  TLS_password?: string  // key passphrase
-  disable_multi_version_client_api?: true
-  callbacks_on_external_threads?: true
-  external_client_library?: string  // path to client library
-  external_client_directory?: string  // path to directory containing client libraries
-  disable_local_client?: true
-  client_threads_per_version?: number  // Number of client threads to be spawned.  Each cluster will be serviced by a single client thread.
-  future_version_client_library?: string  // path to client library
-  disable_client_statistics_logging?: true
-  enable_slow_task_profiling?: true // DEPRECATED
-  enable_run_loop_profiling?: true
-  disable_client_bypass?: true
-  client_buggify_enable?: true
-  client_buggify_disable?: true
-  client_buggify_section_activated_probability?: number  // probability expressed as a percentage between 0 and 100
-  client_buggify_section_fired_probability?: number  // probability expressed as a percentage between 0 and 100
-  distributed_client_tracer?: string  // Distributed tracer type. Choose from none, log_file, or network_lossy
-  client_tmp_dir?: string  // Client directory for temporary files. 
-  supported_client_versions?: string  // [release version],[source version],[protocol version];...
-  external_client?: true
-  external_client_transport_id?: number  // Transport ID for the child connection
+  local_address?: undefined | string // DEPRECATED
+  cluster_file?: undefined | string // DEPRECATED
+  trace_enable?: undefined | string  // path to output directory (or NULL for current working directory)
+  trace_roll_size?: undefined | number  // max size of a single trace output file
+  trace_max_logs_size?: undefined | number  // max total size of trace files
+  trace_log_group?: undefined | string  // value of the LogGroup attribute
+  trace_format?: undefined | string  // Format of trace files
+  trace_clock_source?: undefined | string  // Trace clock source
+  trace_file_identifier?: undefined | string  // The identifier that will be part of all trace file names
+  trace_share_among_client_threads?: undefined | true
+  trace_partial_file_suffix?: undefined | string  // Append this suffix to partially written log files. When a log file is complete, it is renamed to remove the suffix. No separator is added between the file and the suffix. If you want to add a file extension, you should include the separator - e.g. '.tmp' instead of 'tmp' to add the 'tmp' extension.
+  knob?: undefined | string  // knob_name=knob_value
+  TLS_plugin?: undefined | string // DEPRECATED
+  TLS_cert_bytes?: undefined | Buffer  // certificates
+  TLS_cert_path?: undefined | string  // file path
+  TLS_key_bytes?: undefined | Buffer  // key
+  TLS_key_path?: undefined | string  // file path
+  TLS_verify_peers?: undefined | Buffer  // verification pattern
+  Buggify_enable?: undefined | true
+  Buggify_disable?: undefined | true
+  Buggify_section_activated_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
+  Buggify_section_fired_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
+  TLS_ca_bytes?: undefined | Buffer  // ca bundle
+  TLS_ca_path?: undefined | string  // file path
+  TLS_password?: undefined | string  // key passphrase
+  disable_multi_version_client_api?: undefined | true
+  callbacks_on_external_threads?: undefined | true
+  external_client_library?: undefined | string  // path to client library
+  external_client_directory?: undefined | string  // path to directory containing client libraries
+  disable_local_client?: undefined | true
+  client_threads_per_version?: undefined | number  // Number of client threads to be spawned.  Each cluster will be serviced by a single client thread.
+  future_version_client_library?: undefined | string  // path to client library
+  disable_client_statistics_logging?: undefined | true
+  enable_slow_task_profiling?: undefined | true // DEPRECATED
+  enable_run_loop_profiling?: undefined | true
+  disable_client_bypass?: undefined | true
+  client_buggify_enable?: undefined | true
+  client_buggify_disable?: undefined | true
+  client_buggify_section_activated_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
+  client_buggify_section_fired_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
+  distributed_client_tracer?: undefined | string  // Distributed tracer type. Choose from none, log_file, or network_lossy
+  client_tmp_dir?: undefined | string  // Client directory for temporary files. 
+  supported_client_versions?: undefined | string  // [release version],[source version],[protocol version];...
+  external_client?: undefined | true
+  external_client_transport_id?: undefined | number  // Transport ID for the child connection
 }
 
 export enum NetworkOptionCode {
@@ -310,23 +310,23 @@ export enum NetworkOptionCode {
 }
 
 export type DatabaseOptions = {
-  location_cache_size?: number  // Max location cache entries
-  max_watches?: number  // Max outstanding watches
-  machine_id?: string  // Hexadecimal ID
-  datacenter_id?: string  // Hexadecimal ID
-  snapshot_ryw_enable?: true
-  snapshot_ryw_disable?: true
-  transaction_logging_max_field_length?: number  // Maximum length of escaped key and value fields.
-  transaction_timeout?: number  // value in milliseconds of timeout
-  transaction_retry_limit?: number  // number of times to retry
-  transaction_max_retry_delay?: number  // value in milliseconds of maximum delay
-  transaction_size_limit?: number  // value in bytes
-  transaction_causal_read_risky?: true
-  transaction_include_port_in_address?: true
-  transaction_automatic_idempotency?: true
-  transaction_bypass_unreadable?: true
-  use_config_database?: true
-  test_causal_read_risky?: true
+  location_cache_size?: undefined | number  // Max location cache entries
+  max_watches?: undefined | number  // Max outstanding watches
+  machine_id?: undefined | string  // Hexadecimal ID
+  datacenter_id?: undefined | string  // Hexadecimal ID
+  snapshot_ryw_enable?: undefined | true
+  snapshot_ryw_disable?: undefined | true
+  transaction_logging_max_field_length?: undefined | number  // Maximum length of escaped key and value fields.
+  transaction_timeout?: undefined | number  // value in milliseconds of timeout
+  transaction_retry_limit?: undefined | number  // number of times to retry
+  transaction_max_retry_delay?: undefined | number  // value in milliseconds of maximum delay
+  transaction_size_limit?: undefined | number  // value in bytes
+  transaction_causal_read_risky?: undefined | true
+  transaction_include_port_in_address?: undefined | true
+  transaction_automatic_idempotency?: undefined | true
+  transaction_bypass_unreadable?: undefined | true
+  use_config_database?: undefined | true
+  test_causal_read_risky?: undefined | true
 }
 
 export enum DatabaseOptionCode {
@@ -457,55 +457,55 @@ export enum DatabaseOptionCode {
 }
 
 export type TransactionOptions = {
-  causal_write_risky?: true
-  causal_read_risky?: true
-  causal_read_disable?: true
-  include_port_in_address?: true
-  next_write_no_write_conflict_range?: true
-  commit_on_first_proxy?: true
-  check_writes_enable?: true
-  read_your_writes_disable?: true
-  read_ahead_disable?: true // DEPRECATED
-  durability_datacenter?: true
-  durability_risky?: true
-  durability_dev_null_is_web_scale?: true // DEPRECATED
-  priority_system_immediate?: true
-  priority_batch?: true
-  initialize_new_database?: true
-  access_system_keys?: true
-  read_system_keys?: true
-  raw_access?: true
-  debug_dump?: true
-  debug_retry_logging?: string  // Optional transaction name
-  transaction_logging_enable?: string // DEPRECATED
-  debug_transaction_identifier?: string  // String identifier to be used when tracing or profiling this transaction. The identifier must not exceed 100 characters.
-  log_transaction?: true
-  transaction_logging_max_field_length?: number  // Maximum length of escaped key and value fields.
-  server_request_tracing?: true
-  timeout?: number  // value in milliseconds of timeout
-  retry_limit?: number  // number of times to retry
-  max_retry_delay?: number  // value in milliseconds of maximum delay
-  size_limit?: number  // value in bytes
-  idempotency_id?: string  // Unique ID
-  automatic_idempotency?: true
-  snapshot_ryw_enable?: true
-  snapshot_ryw_disable?: true
-  lock_aware?: true
-  used_during_commit_protection_disable?: true
-  read_lock_aware?: true
-  first_in_batch?: true
-  use_provisional_proxies?: true
-  report_conflicting_keys?: true
-  special_key_space_relaxed?: true
-  special_key_space_enable_writes?: true
-  tag?: string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
-  auto_throttle_tag?: string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
-  span_parent?: Buffer  // A byte string of length 16 used to associate the span of this transaction with a parent
-  expensive_clear_cost_estimation_enable?: true
-  bypass_unreadable?: true
-  use_grv_cache?: true
-  skip_grv_cache?: true
-  authorization_token?: string  // A JSON Web Token authorized to access data belonging to one or more tenants, indicated by 'tenants' claim of the token's payload.
+  causal_write_risky?: undefined | true
+  causal_read_risky?: undefined | true
+  causal_read_disable?: undefined | true
+  include_port_in_address?: undefined | true
+  next_write_no_write_conflict_range?: undefined | true
+  commit_on_first_proxy?: undefined | true
+  check_writes_enable?: undefined | true
+  read_your_writes_disable?: undefined | true
+  read_ahead_disable?: undefined | true // DEPRECATED
+  durability_datacenter?: undefined | true
+  durability_risky?: undefined | true
+  durability_dev_null_is_web_scale?: undefined | true // DEPRECATED
+  priority_system_immediate?: undefined | true
+  priority_batch?: undefined | true
+  initialize_new_database?: undefined | true
+  access_system_keys?: undefined | true
+  read_system_keys?: undefined | true
+  raw_access?: undefined | true
+  debug_dump?: undefined | true
+  debug_retry_logging?: undefined | string  // Optional transaction name
+  transaction_logging_enable?: undefined | string // DEPRECATED
+  debug_transaction_identifier?: undefined | string  // String identifier to be used when tracing or profiling this transaction. The identifier must not exceed 100 characters.
+  log_transaction?: undefined | true
+  transaction_logging_max_field_length?: undefined | number  // Maximum length of escaped key and value fields.
+  server_request_tracing?: undefined | true
+  timeout?: undefined | number  // value in milliseconds of timeout
+  retry_limit?: undefined | number  // number of times to retry
+  max_retry_delay?: undefined | number  // value in milliseconds of maximum delay
+  size_limit?: undefined | number  // value in bytes
+  idempotency_id?: undefined | string  // Unique ID
+  automatic_idempotency?: undefined | true
+  snapshot_ryw_enable?: undefined | true
+  snapshot_ryw_disable?: undefined | true
+  lock_aware?: undefined | true
+  used_during_commit_protection_disable?: undefined | true
+  read_lock_aware?: undefined | true
+  first_in_batch?: undefined | true
+  use_provisional_proxies?: undefined | true
+  report_conflicting_keys?: undefined | true
+  special_key_space_relaxed?: undefined | true
+  special_key_space_enable_writes?: undefined | true
+  tag?: undefined | string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
+  auto_throttle_tag?: undefined | string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
+  span_parent?: undefined | Buffer  // A byte string of length 16 used to associate the span of this transaction with a parent
+  expensive_clear_cost_estimation_enable?: undefined | true
+  bypass_unreadable?: undefined | true
+  use_grv_cache?: undefined | true
+  skip_grv_cache?: undefined | true
+  authorization_token?: undefined | string  // A JSON Web Token authorized to access data belonging to one or more tenants, indicated by 'tenants' claim of the token's payload.
 }
 
 export enum TransactionOptionCode {

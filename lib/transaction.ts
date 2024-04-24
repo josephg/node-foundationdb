@@ -39,13 +39,13 @@ byteZero.writeUInt8(0, 0)
 
 export interface RangeOptionsBatch {
   // defaults to Iterator for batch mode, WantAll for getRangeAll.
-  streamingMode?: StreamingMode,
-  limit?: number,
-  reverse?: boolean,
+  streamingMode?: undefined | StreamingMode,
+  limit?: undefined | number,
+  reverse?: undefined | boolean,
 }
 
 export interface RangeOptions extends RangeOptionsBatch {
-  targetBytes?: number,
+  targetBytes?: undefined | number,
 }
 
 export type KVList<Key, Value> = {
@@ -56,7 +56,7 @@ export type KVList<Key, Value> = {
 export {Watch}
 
 export type WatchOptions = {
-  throwAllErrors?: boolean
+  throwAllErrors?: undefined | boolean
 }
 
 // Polyfill for node < 10.0 to make asyncIterators work (getRange / getRangeBatch).
@@ -752,7 +752,15 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    */
   async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | null> {
     const val = await this._tn.get(this._keyEncoding.pack(key), this.isSnapshot)
-    return val == null ? null
+
+    if (val == null) {
+      return null;
+    }
+
+    return val.length <= 10
+      ? {
+        stamp: val
+      }
       : {
         stamp: val.slice(0, 10),
 
@@ -762,7 +770,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         // for the decoder and that can cause issues. We'll just return null
         // in that case - but, yeah, controversial. You might want some other
         // encoding or something. File an issue if this causes you grief.
-        value: val.length > 10 ? this._valueEncoding.unpack(val.slice(10)) : undefined
+        value: this._valueEncoding.unpack(val.slice(10))
       }
   }
 

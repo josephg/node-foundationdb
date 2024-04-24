@@ -5,7 +5,7 @@ import {asBuf, concat2, strInc, startsWith} from './util'
 import {UnboundStamp} from './versionstamp'
 
 export type Transformer<In, Out> = {
-  name?: string, // For debugging.
+  name?: undefined | string, // For debugging.
 
   // The tuple type supports embedding versionstamps, but the versionstamp
   // isn't known until the transaction has been committed.
@@ -54,11 +54,16 @@ export const prefixTransformer = <In, Out>(prefix: string | Buffer, inner: Trans
   if (inner.packUnboundVersionstamp) transformer.packUnboundVersionstamp = (val: In): UnboundStamp => {
     const innerVal = inner.packUnboundVersionstamp!(val)
 
-    return {
+    const unboundStamp: UnboundStamp = {
       data: concat2(_prefix, innerVal.data),
-      stampPos: _prefix.length + innerVal.stampPos,
-      codePos: innerVal.codePos != null ? _prefix.length + innerVal.codePos : undefined,
+      stampPos: _prefix.length + innerVal.stampPos
+    };
+
+    if (innerVal.codePos != null) {
+      unboundStamp.codePos = _prefix.length + innerVal.codePos;
     }
+
+    return unboundStamp;
   }
 
   if (inner.bakeVersionstamp) transformer.bakeVersionstamp = inner.bakeVersionstamp.bind(inner)

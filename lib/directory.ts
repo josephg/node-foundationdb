@@ -500,16 +500,16 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
 
 interface DirectoryLayerOpts {
   /** The prefix for directory metadata nodes. Defaults to '\xfe' */
-  nodePrefix?: string | Buffer
+  nodePrefix?: undefined | string | Buffer
   // We really actually want a NodeSubspace here, but we'll set the kv encoding
   // ourselves to make the API simpler.
-  nodeSubspace?: SubspaceAny
-  
-  /** The prefix for content. Defaults to ''. */
-  contentPrefix?: string | Buffer // Defaults to '', the root.
-  contentSubspace?: SubspaceAny
+  nodeSubspace?: undefined | SubspaceAny
 
-  allowManualPrefixes?: boolean // default false
+  /** The prefix for content. Defaults to ''. */
+  contentPrefix?: undefined | string | Buffer // Defaults to '', the root.
+  contentSubspace?: undefined | SubspaceAny
+
+  allowManualPrefixes?: undefined | boolean // default false
 }
 
 export class DirectoryLayer {
