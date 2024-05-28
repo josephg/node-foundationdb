@@ -181,6 +181,7 @@ MaybeValue fdbFutureToCallback(napi_env env, FDBFuture *f, napi_value cbFunc, Ex
     napi_value callback;
     NAPI_OK_OR_RETURN_STATUS(env, napi_get_reference_value(env, ctx->cbFunc, &callback));
     NAPI_OK_OR_RETURN_STATUS(env, napi_reference_unref(env, ctx->cbFunc, NULL));
+    NAPI_OK_OR_RETURN_STATUS(env, napi_delete_reference(env, ctx->cbFunc));
 
     size_t argc = 1; // In case of error we just won't populate argv[1].
     napi_value argv[2] = {}; // (err, value).
@@ -306,6 +307,7 @@ MaybeValue watchFuture(napi_env env, FDBFuture *f, bool ignoreStandardErrors) {
     napi_value jsWatch;
     NAPI_OK_OR_RETURN_STATUS(env, napi_get_reference_value(env, ctx->jsWatch, &jsWatch));
     NAPI_OK_OR_RETURN_STATUS(env, napi_reference_unref(env, ctx->jsWatch, NULL));
+    NAPI_OK_OR_RETURN_STATUS(env, napi_delete_reference(env, ctx->jsWatch));
 
     // Unlink the handle to the future.
     NAPI_OK_OR_RETURN_STATUS(env, napi_remove_wrap(env, jsWatch, NULL));
