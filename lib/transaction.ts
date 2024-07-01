@@ -123,11 +123,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   isSnapshot: boolean
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
-  // Copied out from scope for convenience, since these are so heavily used. Not
-  // sure if this is a good idea.
-  private _keyEncoding: Transformer<KeyIn, KeyOut>
-  private _valueEncoding: Transformer<ValIn, ValOut>
-  
   private _ctx: TxnCtx
   
   /**
@@ -144,8 +139,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
     this.isSnapshot = snapshot
     this.subspace = subspace
-    this._keyEncoding = subspace._bakedKeyXf
-    this._valueEncoding = subspace.valueXf
 
     // this._root = root || this
     if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
@@ -266,20 +259,20 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   get(key: KeyIn, cb: Callback<ValOut | undefined>): void
   get(key: KeyIn, cb?: Callback<ValOut | undefined>) {
-    const keyBuf = this._keyEncoding.pack(key)
+    const keyBuf = this.subspace.packKey(key)
     return cb
       ? this._tn.get(keyBuf, this.isSnapshot, (err, val) => {
-        cb(err, val == null ? undefined : this._valueEncoding.unpack(val))
+        cb(err, val == null ? undefined : this.subspace.unpackValue(val))
       })
       : this._tn.get(keyBuf, this.isSnapshot)
-        .then(val => val == null ? undefined : this._valueEncoding.unpack(val))
+        .then(val => val == null ? undefined : this.subspace.unpackValue(val))
   }
 
   /** Checks if the key exists in the database. This is just a shorthand for
    * tn.get() !== undefined.
    */
   exists(key: KeyIn): Promise<boolean> {
-    const keyBuf = this._keyEncoding.pack(key)
+    const keyBuf = this.subspace.packKey(key)
     return this._tn.get(keyBuf, this.isSnapshot).then(val => val != undefined)
   }
 
@@ -302,22 +295,22 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    */
   getKey(_sel: KeySelector<KeyIn> | KeyIn): Promise<KeyOut | undefined> {
     const sel = keySelector.from(_sel)
-    return this._tn.getKey(this._keyEncoding.pack(sel.key), sel.orEqual, sel.offset, this.isSnapshot)
+    return this._tn.getKey(this.subspace.packKey(sel.key), sel.orEqual, sel.offset, this.isSnapshot)
       .then(key => (
         (key.length === 0 || !this.subspace.contains(key))
           ? undefined
-          : this._keyEncoding.unpack(key)
+          : this.subspace.unpackKey(key)
       ))
   }
 
   /** Set the specified key/value pair in the database */
   set(key: KeyIn, val: ValIn) {
-    this._tn.set(this._keyEncoding.pack(key), this._valueEncoding.pack(val))
+    this._tn.set(this.subspace.packKey(key), this.subspace.packValue(val))
   }
 
   /** Remove the value for the specified key */
   clear(key: KeyIn) {
-    const pack = this._keyEncoding.pack(key)
+    const pack = this.subspace.packKey(key)
     this._tn.clear(pack)
   }
 
@@ -330,8 +323,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   private _encodeRangeResult(r: [Buffer, Buffer][]): [KeyOut, ValOut][] {
     // This is slightly faster but I have to throw away the TS checks in the process. :/
     for (let i = 0; i < r.length; i++) {
-      ;(r as any)[i][0] = this._keyEncoding.unpack(r[i][0])
-      ;(r as any)[i][1] = this._valueEncoding.unpack(r[i][1])
+      ;(r as any)[i][0] = this.subspace.unpackKey(r[i][0])
+      ;(r as any)[i][1] = this.subspace.unpackValue(r[i][1])
     }
     return r as any as [KeyOut, ValOut][]
   }
@@ -352,27 +345,62 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       limit: number, targetBytes: number, streamingMode: StreamingMode,
       iter: number, reverse: boolean): Promise<KVList<KeyOut, ValOut>> {
     return this.getRangeNative(
-      keySelector.toNative(start, this._keyEncoding),
-      end != null ? keySelector.toNative(end, this._keyEncoding) : null,
+      keySelector(this.subspace.packKey(start.key), start.orEqual, start.offset),
+      end != null ? keySelector(this.subspace.packKey(end.key), end.orEqual, end.offset) : null,
       limit, targetBytes, streamingMode, iter, reverse)
     .then(r => ({more: r.more, results: this._encodeRangeResult(r.results)}))
   }
 
-  getEstimatedRangeSizeBytes(start: KeyIn, end: KeyIn): Promise<number> {
-    return this._tn.getEstimatedRangeSizeBytes(
-      this._keyEncoding.pack(start),
-      this._keyEncoding.pack(end)
-    )
+  getEstimatedRangeSizeBytes(start?: KeyIn, end?: KeyIn): Promise<number> {
+    const range = this.subspace.packRange(start, end)
+
+    return this._tn.getEstimatedRangeSizeBytes(range.begin, range.end)
   }
 
-  getRangeSplitPoints(start: KeyIn, end: KeyIn, chunkSize: number): Promise<KeyOut[]> {
-    return this._tn.getRangeSplitPoints(
-      this._keyEncoding.pack(start),
-      this._keyEncoding.pack(end),
-      chunkSize
-    ).then(results => (
-      results.map(r => this._keyEncoding.unpack(r))
+  getRangeSplitPoints(start: KeyIn | undefined, end: KeyIn | undefined, chunkSize: number): Promise<KeyOut[]> {
+    const range = this.subspace.packRange(start, end)
+
+    return this._tn.getRangeSplitPoints(range.begin, range.end, chunkSize).then(results => (
+      results.map(r => this.subspace.unpackKey(r))
     ))
+  }
+
+  async *getRangeBatchNative(
+    start: KeySelector<NativeValue>,
+    end: KeySelector<NativeValue>,
+    {
+      limit = 0,
+      reverse = false,
+      streamingMode = StreamingMode.Iterator
+    }: RangeOptions = {}
+  ) {
+    let iter = 0
+
+    while (1) {
+      const { results, more } = await this.getRangeNative(
+        start,
+        end,
+        limit,
+        0,
+        streamingMode,
+        ++iter,
+        reverse
+      )
+
+      if (results.length) {
+        if (!reverse) start = keySelector.firstGreaterThan(results[results.length-1][0])
+        else end = keySelector.firstGreaterOrEqual(results[results.length-1][0])
+      }
+
+      // This destructively consumes results.
+      yield this._encodeRangeResult(results)
+      if (!more) break
+
+      if (limit) {
+        limit -= results.length
+        if (limit <= 0) break
+      }
+    }
   }
 
   /**
@@ -393,54 +421,37 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * 
    * @see Transaction.getRange
    */
-  async *getRangeBatch(
-      _start: KeyIn | KeySelector<KeyIn>, // Consider also supporting string / buffers for these.
-      _end?: KeyIn | KeySelector<KeyIn>, // If not specified, start is used as a prefix.
+  getRangeBatch(
+      start?: KeyIn | KeySelector<undefined | KeyIn>,
+      end?: KeyIn | KeySelector<undefined | KeyIn>,
       opts: RangeOptions = {}) {
+    const startSelector = keySelector.from(start)
+    const endSelector = keySelector.from(end)
+    const range = this.subspace.packRange(startSelector.key, endSelector.key)
 
-    // This is a bit of a dog's breakfast. We're trying to handle a lot of different cases here:
-    // - The start and end parameters can be specified as keys or as selectors
-    // - The end parameter can be missing / null, and if it is we want to "do the right thing" here
-    //   - Which normally means searching between [start, strInc(start)]
-    //   - But with tuple encoding this means between [start + '\x00', start + '\xff']
-
-    let start: KeySelector<string | Buffer>, end: KeySelector<string | Buffer>
-    const startSelEnc = keySelector.from(_start)
-    
-    if (_end == null) {
-      const range = this.subspace.packRange(startSelEnc.key)
-      start = keySelector(range.begin, startSelEnc.orEqual, startSelEnc.offset)
-      end = keySelector.firstGreaterOrEqual(range.end)
-    } else {
-      start = keySelector.toNative(startSelEnc, this._keyEncoding)
-      end = keySelector.toNative(keySelector.from(_end), this._keyEncoding)
-    }
-
-    let limit = opts.limit || 0
-    const streamingMode = opts.streamingMode == null ? StreamingMode.Iterator : opts.streamingMode
-
-    let iter = 0
-    while (1) {
-      const {results, more} = await this.getRangeNative(start, end,
-        limit, 0, streamingMode, ++iter, opts.reverse || false)
-
-      if (results.length) {
-        if (!opts.reverse) start = keySelector.firstGreaterThan(results[results.length-1][0])
-        else end = keySelector.firstGreaterOrEqual(results[results.length-1][0])
-      }
-
-      // This destructively consumes results.
-      yield this._encodeRangeResult(results)
-      if (!more) break
-
-      if (limit) {
-        limit -= results.length
-        if (limit <= 0) break
-      }
-    }
+    return this.getRangeBatchNative(
+      keySelector(range.begin, startSelector.orEqual, startSelector.offset),
+      keySelector(range.end, startSelector.orEqual, startSelector.offset),
+      opts
+    )
   }
 
-  // TODO: getRangeBatchStartsWith
+  /**
+   * This method is similar to *getRangeBatch*, but performs a query
+   * on a key range specified by `prefix` instead of start and end.
+   *
+   * @see Transaction.getRangeBatch
+   */
+  getRangeBatchStartsWith(prefix: KeyIn | KeySelector<KeyIn>, opts?: RangeOptions) {
+    const prefixSelector = keySelector.from(prefix)
+    const range = this.subspace.packRangeStartsWith(prefixSelector.key)
+
+    return this.getRangeBatchNative(
+      keySelector(range.begin, prefixSelector.orEqual, prefixSelector.offset),
+      keySelector.firstGreaterOrEqual(range.end),
+      opts
+    )
+  }
 
   /**
    * Get all key value pairs within the specified range. This method returns an
@@ -483,15 +494,27 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    *   opts.
    */
   async *getRange(
-      start: KeyIn | KeySelector<KeyIn>, // Consider also supporting string / buffers for these.
-      end?: KeyIn | KeySelector<KeyIn>,
+      start?: KeyIn | KeySelector<undefined | KeyIn>,
+      end?: KeyIn | KeySelector<undefined | KeyIn>,
       opts?: RangeOptions) {
     for await (const batch of this.getRangeBatch(start, end, opts)) {
       for (const pair of batch) yield pair
     }
   }
 
-  // TODO: getRangeStartsWtih
+  /**
+   * This method is similar to *getRange*, but performs a query
+   * on a key range specified by `prefix` instead of start and end.
+   *
+   * @see Transaction.getRange
+   */
+  async *getRangeStartsWith(
+      prefix: KeyIn | KeySelector<KeyIn>,
+      opts: RangeOptions = {}) {
+    for await (const batch of this.getRangeBatchStartsWith(prefix, opts)) {
+      for (const pair of batch) yield pair
+    }
+  }
 
   /**
    * Same as getRange, but prefetches and returns all values in an array rather
@@ -503,71 +526,97 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * @returns array of [key, value] pairs
    */
   async getRangeAll(
-      start: KeyIn | KeySelector<KeyIn>,
-      end?: KeyIn | KeySelector<KeyIn>, // if undefined, start is used as a prefix.
-      opts: RangeOptions = {}) {
-    const childOpts: RangeOptions = {...opts}
-    if (childOpts.streamingMode == null) childOpts.streamingMode = StreamingMode.WantAll
+      start?: KeyIn | KeySelector<undefined | KeyIn>,
+      end?: KeyIn | KeySelector<undefined | KeyIn>,
+      opts?: RangeOptions) {
+    const childOpts: RangeOptions = opts?.streamingMode == null
+      ? { ...opts, streamingMode: StreamingMode.WantAll }
+      : opts
 
     const result: [KeyOut, ValOut][] = []
+
     for await (const batch of this.getRangeBatch(start, end, childOpts)) {
-      result.push.apply(result, batch)
+      result.push(...batch)
     }
+
     return result
   }
 
-  getRangeAllStartsWith(prefix: KeyIn | KeySelector<KeyIn>, opts?: RangeOptions) {
-    return this.getRangeAll(prefix, undefined, opts)
+  /**
+   * This method is similar to *getRangeAll*, but performs a query
+   * on a key range specified by `prefix` instead of start and end.
+   *
+   * @see Transaction.getRangeAll
+   */
+  async getRangeAllStartsWith(prefix: KeyIn | KeySelector<KeyIn>, opts?: RangeOptions) {
+    const childOpts: RangeOptions = opts?.streamingMode == null
+      ? { ...opts, streamingMode: StreamingMode.WantAll }
+      : opts
+
+    const result: [KeyOut, ValOut][] = []
+
+    for await (const batch of this.getRangeBatchStartsWith(prefix, childOpts)) {
+      result.push(...batch)
+    }
+
+    return result
   }
   
   /**
    * Removes all key value pairs from the database in between start and end.
    *
-   * End parameter is optional. If not specified, this removes all keys with
-   * *start* as a prefix.
+   * @param start Start of the range. If unspecified, the start of the keyspace is assumed.
+   * @param end End of the range. If unspecified, the inclusive end of the keyspace is assumed.
    */
-  clearRange(_start: KeyIn, _end?: KeyIn) {
-    let start: NativeValue, end: NativeValue
-    // const _start = this._keyEncoding.pack(start)
+  clearRange(start?: KeyIn, end?: KeyIn) {
+    const range = this.subspace.packRange(start, end)
 
-    if (_end == null) {
-      const range = this.subspace.packRange(_start)
-      start = range.begin
-      end = range.end
-    } else {
-      start = this._keyEncoding.pack(_start)
-      end = this._keyEncoding.pack(_end)
-    }
-    // const _end = end == null ? strInc(_start) : this._keyEncoding.pack(end)
-    this._tn.clearRange(start, end)
+    this._tn.clearRange(range.begin, range.end)
   }
 
-  /** An alias for unary clearRange */
+  /**
+   * This method is similar to *clearRange*, but performs the operation
+   * on a key range specified by `prefix` instead of start and end.
+   *
+   * @see Transaction.clearRange
+   */
   clearRangeStartsWith(prefix: KeyIn) {
-    this.clearRange(prefix)
+    const range = this.subspace.packRangeStartsWith(prefix)
+
+    this._tn.clearRange(range.begin, range.end)
   }
 
   watch(key: KeyIn, opts?: WatchOptions): Watch {
     const throwAll = opts && opts.throwAllErrors
-    const watch = this._tn.watch(this._keyEncoding.pack(key), !throwAll)
+    const watch = this._tn.watch(this.subspace.packKey(key), !throwAll)
     // Suppress the global unhandledRejection handler when a watch errors
     watch.promise.catch(doNothing)
     return watch
   }
 
-  addReadConflictRange(start: KeyIn, end: KeyIn) {
-    this._tn.addReadConflictRange(this._keyEncoding.pack(start), this._keyEncoding.pack(end))
+  addReadConflictRange(start?: KeyIn, end?: KeyIn) {
+    const range = this.subspace.packRange(start, end)
+    this._tn.addReadConflictRange(range.begin, range.end)
+  }
+  addReadConflictRangeStartsWith(prefix: KeyIn) {
+    const range = this.subspace.packRangeStartsWith(prefix)
+    this._tn.addReadConflictRange(range.begin, range.end)
   }
   addReadConflictKey(key: KeyIn) {
-    const keyBuf = this._keyEncoding.pack(key)
+    const keyBuf = this.subspace.packKey(key)
     this._tn.addReadConflictRange(keyBuf, strNext(keyBuf))
   }
 
-  addWriteConflictRange(start: KeyIn, end: KeyIn) {
-    this._tn.addWriteConflictRange(this._keyEncoding.pack(start), this._keyEncoding.pack(end))
+  addWriteConflictRange(start?: KeyIn, end?: KeyIn) {
+    const range = this.subspace.packRange(start, end)
+    this._tn.addWriteConflictRange(range.begin, range.end)
+  }
+  addWriteConflictRangeStartsWith(prefix: KeyIn) {
+    const range = this.subspace.packRangeStartsWith(prefix)
+    this._tn.addWriteConflictRange(range.begin, range.end)
   }
   addWriteConflictKey(key: KeyIn) {
-    const keyBuf = this._keyEncoding.pack(key)
+    const keyBuf = this.subspace.packKey(key)
     this._tn.addWriteConflictRange(keyBuf, strNext(keyBuf))
   }
 
@@ -608,7 +657,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getAddressesForKey(key: KeyIn): string[] {
-    return this._tn.getAddressesForKey(this._keyEncoding.pack(key))
+    return this._tn.getAddressesForKey(this.subspace.packKey(key))
   }
 
   // **** Atomic operations
@@ -617,10 +666,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this._tn.atomicOp(opType, key, oper)
   }
   atomicOpKB(opType: MutationType, key: KeyIn, oper: Buffer) {
-    this._tn.atomicOp(opType, this._keyEncoding.pack(key), oper)
+    this._tn.atomicOp(opType, this.subspace.packKey(key), oper)
   }
   atomicOp(opType: MutationType, key: KeyIn, oper: ValIn) {
-    this._tn.atomicOp(opType, this._keyEncoding.pack(key), this._valueEncoding.pack(oper))
+    this._tn.atomicOp(opType, this.subspace.packKey(key), this.subspace.packValue(oper))
   }
 
   /**
@@ -673,14 +722,14 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   setVersionstampedKeyRaw(keyBytes: Buffer, value: ValIn) {
-    this.atomicOpNative(MutationType.SetVersionstampedKey, keyBytes, this._valueEncoding.pack(value))
+    this.atomicOpNative(MutationType.SetVersionstampedKey, keyBytes, this.subspace.packValue(value))
   }
 
   // This sets the key [prefix, 10 bytes versionstamp, suffix] to value.
   setVersionstampedKeyBuf(prefix: Buffer | undefined, suffix: Buffer | undefined, value: ValIn) {
     const key = packVersionstampPrefixSuffix(prefix, suffix, true)
     // console.log('key', key)
-    this.atomicOpNative(MutationType.SetVersionstampedKey, key, this._valueEncoding.pack(value))
+    this.atomicOpNative(MutationType.SetVersionstampedKey, key, this.subspace.packValue(value))
   }
 
   private _addBakeItem<T>(item: T, transformer: Transformer<T, any>, code: Buffer | null) {
@@ -698,19 +747,15 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   // key to be baked out with a versionstamp after it, use
   // setVersionstampSuffixedKey.
   setVersionstampedKey(key: KeyIn, value: ValIn, bakeAfterCommit: boolean = true) {
-    if (!this._keyEncoding.packUnboundVersionstamp) {
-      throw TypeError('Key encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
-    }
-
-    const pack = this._keyEncoding.packUnboundVersionstamp(key)
+    const pack = this.subspace.packKeyUnboundVersionstamp(key)
     const code = this._bakeCode(pack)
     this.setVersionstampedKeyRaw(packVersionstamp(pack, true), value)
 
-    if (bakeAfterCommit) this._addBakeItem(key, this._keyEncoding, code)
+    if (bakeAfterCommit) this._addBakeItem(key, this.subspace._bakedKeyXf, code)
   }
 
   setVersionstampSuffixedKey(key: KeyIn, value: ValIn, suffix?: Buffer) {
-    const prefix = asBuf(this._keyEncoding.pack(key))
+    const prefix = asBuf(this.subspace.packKey(key))
     this.setVersionstampedKeyBuf(prefix, suffix, value)
   }
 
@@ -721,16 +766,12 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   setVersionstampedValue(key: KeyIn, value: ValIn, bakeAfterCommit: boolean = true) {
-    // This is super similar to setVersionstampedKey. I wish I could reuse the code.
-    if (!this._valueEncoding.packUnboundVersionstamp) {
-      throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
-    }
-
-    const pack = this._valueEncoding.packUnboundVersionstamp(value)
+    const pack = this.subspace.packValueUnboundVersionstamp(value)
     const code = this._bakeCode(pack)
-    this.setVersionstampedValueRaw(key, packVersionstamp(pack, false))
+    const val = packVersionstamp(pack, false)
+    this.atomicOpKB(MutationType.SetVersionstampedValue, key, val)
 
-    if (bakeAfterCommit) this._addBakeItem(value, this._valueEncoding, code)
+    if (bakeAfterCommit) this._addBakeItem(value, this.subspace.valueXf, code)
   }
 
   /**
@@ -739,7 +780,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * prefix is only supported on API version 520+.
    */
   setVersionstampPrefixedValue(key: KeyIn, value?: ValIn, prefix?: Buffer) {
-    const valBuf = value !== undefined ? asBuf(this._valueEncoding.pack(value)) : undefined
+    const valBuf = value !== undefined ? asBuf(this.subspace.packValue(value)) : undefined
     const val = packVersionstampPrefixSuffix(prefix, valBuf, false)
     this.atomicOpKB(MutationType.SetVersionstampedValue, key, val)
   }
@@ -751,10 +792,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * using setVersionstampedValue with tuples, just call get().
    */
   async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | null> {
-    const val = await this._tn.get(this._keyEncoding.pack(key), this.isSnapshot)
+    const val = await this._tn.get(this.subspace.packKey(key), this.isSnapshot)
 
     if (val == null) {
-      return null;
+      return null
     }
 
     return val.length <= 10
@@ -770,7 +811,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         // for the decoder and that can cause issues. We'll just return null
         // in that case - but, yeah, controversial. You might want some other
         // encoding or something. File an issue if this causes you grief.
-        value: this._valueEncoding.unpack(val.slice(10))
+        value: this.subspace.unpackValue(val.slice(10))
       }
   }
 

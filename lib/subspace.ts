@@ -5,7 +5,10 @@
 
 import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } from "./transformer"
 import { NativeValue } from "./native"
-import { asBuf, concat2, startsWith } from "./util"
+import {
+  asBuf, concat2, startsWith, strInc
+} from "./util"
+import { UnboundStamp } from './versionstamp.js'
 
 const EMPTY_BUF = Buffer.alloc(0)
 
@@ -75,17 +78,51 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   unpackKey(key: Buffer): KeyOut {
     return this._bakedKeyXf.unpack(key)
   }
+  packKeyUnboundVersionstamp(key: KeyIn): UnboundStamp {
+    if (!this._bakedKeyXf.packUnboundVersionstamp) {
+      throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
+    }
+
+    return this._bakedKeyXf.packUnboundVersionstamp(key)
+  }
   packValue(val: ValIn): NativeValue {
     return this.valueXf.pack(val)
   }
   unpackValue(val: Buffer): ValOut {
     return this.valueXf.unpack(val)
   }
+  packValueUnboundVersionstamp(value: ValIn): UnboundStamp {
+    if (!this.valueXf.packUnboundVersionstamp) {
+      throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
+    }
 
-  packRange(prefix: KeyIn): {begin: NativeValue, end: NativeValue} {
-    // if (this._bakedKeyXf.range) return this._bakedKeyXf.range(prefix)
-    // else return defaultGetRange(prefix, this._bakedKeyXf)
-    return (this._bakedKeyXf.range || defaultGetRange)(prefix, this._bakedKeyXf)
+    return this.valueXf.packUnboundVersionstamp(value)
+  }
+
+  /**
+   * Encodes a range specified by `start`/`end` pair using configured key encoder.
+   *
+   * @param start Start of the key range. If undefined, the start of the subspace is assumed.
+   * @param end End of the key range. If undefined, the end of the subspace is assumed.
+   * @returns Encoded range as a `{ begin, end }` record.
+   */
+  packRange(start?: KeyIn, end?: KeyIn): {begin: NativeValue, end: NativeValue} {
+    return {
+      begin: start !== undefined ? this._bakedKeyXf.pack(start) : this.prefix,
+      end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix)
+    }
+  }
+
+  /**
+   * Encodes a range specified by the prefix using configured key encoder.
+   *
+   * @param prefix Start of the key key range. If undefined, the start of the subspace is assumed.
+   * @returns Encoded range as a `{ begin, end }` record.
+   */
+  packRangeStartsWith(prefix: KeyIn): {begin: NativeValue, end: NativeValue} {
+    const encodePrefix = this._bakedKeyXf.range ?? defaultGetRange
+
+    return encodePrefix(prefix, this._bakedKeyXf)
   }
 
   contains(key: NativeValue) {

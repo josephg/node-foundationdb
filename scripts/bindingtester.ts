@@ -666,7 +666,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
     async DIRECTORY_RANGE() {
       const keyTuple = await popNValues()
-      const {begin, end} = getCurrentSubspace().withKeyEncoding(tupleStrict).packRange(keyTuple)
+      const {begin, end} = getCurrentSubspace().withKeyEncoding(tupleStrict).packRangeStartsWith(keyTuple)
       pushValue(begin); pushValue(end)
     },
     async DIRECTORY_CONTAINS() {

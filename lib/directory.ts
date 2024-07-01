@@ -917,7 +917,7 @@ export class DirectoryLayer {
 
   private async* _subdirNamesAndNodes(txn: TxnAny, node: NodeSubspace) {
     // TODO: This could work using async iterators to improve performance of searches on very large directories.
-    for await (const [key, prefix] of txn.at(node).getRange(SUBDIRS_KEY)) {
+    for await (const [key, prefix] of txn.at(node).getRangeStartsWith(SUBDIRS_KEY)) {
       yield [key[1], this._nodeWithPrefix(prefix)] as [Buffer, NodeSubspace]
     }
   }
