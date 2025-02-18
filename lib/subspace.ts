@@ -41,12 +41,28 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // legit all the variants. Typescript can probably infer using less than this,
   // but I honestly don't trust it not to land with any or unknown or something
   // in some of the derived types
-  at(prefix: KeyIn | null): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
-  at<CKI, CKO>(prefix: KeyIn | null, keyXf: Transformer<CKI, CKO>): Subspace<CKI, CKO, ValIn, ValOut>;
-  at<CVI, CVO>(prefix: KeyIn | null, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>;
-  // ***
-  at(prefix: KeyIn | null, keyXf: Transformer<any, any> = this.keyXf, valueXf: Transformer<any, any> = this.valueXf) {
+  at(prefix?: KeyIn | null, keyXf?: undefined, valueXf?: undefined): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
+  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Subspace<CKI, CKO, ValIn, ValOut>;
+  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf?: Transformer<CKI, CKO>, valueXf?: undefined):
+    | Subspace<KeyIn, KeyOut, ValIn, ValOut>
+    | Subspace<CKI, CKO, ValIn, ValOut>;
+  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf?: Transformer<CVI, CVO>):
+    | Subspace<KeyIn, KeyOut, ValIn, ValOut>
+    | Subspace<KeyIn, KeyOut, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO> | undefined, valueXf: Transformer<CVI, CVO>):
+    | Subspace<KeyIn, KeyOut, CVI, CVO>
+    | Subspace<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+    | Subspace<CKI, CKO, ValIn, ValOut>
+    | Subspace<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix?: KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+    | Subspace<KeyIn, KeyOut, ValIn, ValOut>
+    | Subspace<CKI, CKO, ValIn, ValOut>
+    | Subspace<KeyIn, KeyOut, CVI, CVO>
+    | Subspace<CKI, CKO, CVI, CVO>;
+  at(prefix?: KeyIn | null, keyXf: Transformer<unknown, unknown> = this.keyXf, valueXf: Transformer<unknown, unknown> = this.valueXf) {
     const _prefix = prefix == null ? null : this.keyXf.pack(prefix)
     return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf)
   }
@@ -56,13 +72,22 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     return new Subspace(concatPrefix(this.prefix, prefix), this.keyXf, this.valueXf)
   }
 
-
-  withKeyEncoding<CKI, CKO>(keyXf: Transformer<CKI, CKO>): Subspace<CKI, CKO, ValIn, ValOut> {
+  withKeyEncoding(keyXf?: undefined): Subspace<NativeValue, Buffer, ValIn, ValOut>
+  withKeyEncoding<CKI, CKO>(keyXf: Transformer<CKI, CKO>): Subspace<CKI, CKO, ValIn, ValOut>
+  withKeyEncoding<CKI, CKO>(keyXf?: Transformer<CKI, CKO>):
+    | Subspace<NativeValue, Buffer, ValIn, ValOut>
+    | Subspace<CKI, CKO, ValIn, ValOut>
+  withKeyEncoding(keyXf?: Transformer<unknown, unknown>) {
     return new Subspace(this.prefix, keyXf, this.valueXf)
   }
-  
-  withValueEncoding<CVI, CVO>(valXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO> {
-    return new Subspace(this.prefix, this.keyXf, valXf)
+
+  withValueEncoding(valueXf?: undefined): Subspace<KeyIn, KeyOut, NativeValue, Buffer>
+  withValueEncoding<CVI, CVO>(valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>
+  withValueEncoding<CVI, CVO>(valueXf?: Transformer<CVI, CVO>):
+    | Subspace<KeyIn, KeyOut, NativeValue, Buffer>
+    | Subspace<KeyIn, KeyOut, CVI, CVO>
+  withValueEncoding(valueXf?: Transformer<unknown, unknown>) {
+    return new Subspace(this.prefix, this.keyXf, valueXf)
   }
 
   // GetSubspace implementation

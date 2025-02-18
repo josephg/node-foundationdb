@@ -1,6 +1,6 @@
 import * as fdb from './native'
 import Transaction, { RangeOptions, Watch } from './transaction'
-import {Transformer, defaultTransformer} from './transformer'
+import {Transformer} from './transformer'
 import {NativeValue} from './native'
 import {KeySelector} from './keySelector'
 import Subspace, { root, GetSubspace, isGetSubspace } from './subspace'
@@ -43,27 +43,48 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // convenience and backwards compatibility.
   /** Create a shallow reference to the database at a specified subspace */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Database<CKI, CKO, CVI, CVO>
-  /** Create a shallow reference to the database at the subspace of another database reference */
-  // at<CKI = KeyIn, CKO = KeyOut, CVI = ValIn, CVO = ValOut>(prefix: KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>): Database<CKI, CKO, CVI, CVO>
-
-  at(prefix: KeyIn | null): Database<KeyIn, KeyOut, ValIn, ValOut>;
-  at<CKI, CKO>(prefix: KeyIn | null, keyXf: Transformer<CKI, CKO>): Database<CKI, CKO, ValIn, ValOut>;
-  at<CVI, CVO>(prefix: KeyIn | null, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Database<KeyIn, KeyOut, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Database<CKI, CKO, CVI, CVO>;
-
-  at<CKI, CKO, CVI, CVO>(prefixOrSubspace: GetSubspace<CKI, CKO, CVI, CVO> | KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>): Database<CKI, CKO, CVI, CVO> {
+  at(prefix?: KeyIn | null, keyXf?: undefined, valueXf?: undefined): Database<KeyIn, KeyOut, ValIn, ValOut>;
+  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Database<CKI, CKO, ValIn, ValOut>;
+  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Database<KeyIn, KeyOut, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Database<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf?: Transformer<CKI, CKO>, valueXf?: undefined):
+    | Database<KeyIn, KeyOut, ValIn, ValOut>
+    | Database<CKI, CKO, ValIn, ValOut>;
+  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf?: Transformer<CVI, CVO>):
+    | Database<KeyIn, KeyOut, ValIn, ValOut>
+    | Database<KeyIn, KeyOut, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO> | undefined, valueXf: Transformer<CVI, CVO>):
+    | Database<KeyIn, KeyOut, CVI, CVO>
+    | Database<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+    | Database<CKI, CKO, ValIn, ValOut>
+    | Database<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix?: KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+    | Database<KeyIn, KeyOut, ValIn, ValOut>
+    | Database<CKI, CKO, ValIn, ValOut>
+    | Database<KeyIn, KeyOut, CVI, CVO>
+    | Database<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefixOrSubspace?: GetSubspace<CKI, CKO, CVI, CVO> | KeyIn | null, keyXf?: Transformer<unknown, unknown>, valueXf?: Transformer<unknown, unknown>) {
     if (isGetSubspace(prefixOrSubspace)) return new Database(this._db, prefixOrSubspace.getSubspace())
     else return new Database(this._db, this.subspace.at(prefixOrSubspace, keyXf, valueXf))
   }
 
-  withKeyEncoding<ChildKeyIn, ChildKeyOut>(keyXf: Transformer<ChildKeyIn, ChildKeyOut>): Database<ChildKeyIn, ChildKeyOut, ValIn, ValOut>
-  withKeyEncoding<NativeValue, Buffer>(): Database<NativeValue, Buffer, ValIn, ValOut>
-  withKeyEncoding<ChildKeyIn, ChildKeyOut>(keyXf: Transformer<any, any> = defaultTransformer): Database<ChildKeyIn, ChildKeyOut, ValIn, ValOut> {
-    return new Database(this._db, this.subspace.at(null, keyXf))
+  withKeyEncoding(keyXf?: undefined): Database<NativeValue, Buffer, ValIn, ValOut>
+  withKeyEncoding<CKI, CKO>(keyXf: Transformer<CKI, CKO>): Database<CKI, CKO, ValIn, ValOut>
+  withKeyEncoding<CKI, CKO>(keyXf?: Transformer<CKI, CKO>):
+    | Database<NativeValue, Buffer, ValIn, ValOut>
+    | Database<CKI, CKO, ValIn, ValOut>
+  withKeyEncoding(keyXf?: Transformer<unknown, unknown>) {
+    return new Database(this._db, this.subspace.withKeyEncoding(keyXf))
   }
-  
-  withValueEncoding<ChildValIn, ChildValOut>(valXf: Transformer<ChildValIn, ChildValOut>): Database<KeyIn, KeyOut, ChildValIn, ChildValOut> {
-    return new Database(this._db, this.subspace.at(null, undefined /* inherit */, valXf))
+
+  withValueEncoding(valueXf?: undefined): Database<KeyIn, KeyOut, NativeValue, Buffer>
+  withValueEncoding<CVI, CVO>(valueXf: Transformer<CVI, CVO>): Database<KeyIn, KeyOut, CVI, CVO>
+  withValueEncoding<CVI, CVO>(valueXf?: Transformer<CVI, CVO>):
+    | Database<KeyIn, KeyOut, NativeValue, Buffer>
+    | Database<KeyIn, KeyOut, CVI, CVO>
+  withValueEncoding(valueXf?: Transformer<unknown, unknown>) {
+    return new Database(this._db, this.subspace.withValueEncoding(valueXf))
   }
 
   // This is the API you want to use for non-trivial transactions.
