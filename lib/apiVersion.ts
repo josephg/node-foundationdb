@@ -3,7 +3,7 @@ import nativeMod from './native'
 // To update:
 // - regenerate lib/opts.g.ts using scripts/gentsopts.ts
 // - re-run the test suite and binding test suite
-export const MAX_VERSION = 720
+export const MAX_VERSION = 730
 
 let apiVersion: number | null = null
 export const get = () => apiVersion
