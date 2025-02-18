@@ -1,5 +1,9 @@
 # HEAD
 
+# 2.0.2
+- Updated to support FoundationDB API version 730.
+  - This means node-foundationdb requires foundationdb-clients 7.3 (which is the only version currently supported by the FoundationDB team) or newer to build
+
 # 2.0.1
 
 - Added native support for apple silicon (arm64). This has been way too long coming. Thanks to everyone who contributed on [the github issue](https://github.com/josephg/node-foundationdb/issues/50). The library should automatically detect your computer's architecture and "just work". You will need to install a version of foundationdb which matches your computer's architecture.
